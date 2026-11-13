@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Debate Engine</title>
+<style>
+  :root {
+    --bg:#0e1117; --panel:#161b24; --panel2:#1d2430; --line:#2a3342;
+    --text:#e6e9ef; --muted:#8b95a7; --accent:#8b7cf6;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  header { padding:22px 24px 8px; max-width:1400px; margin:0 auto; }
+  h1 { margin:0 0 4px; font-size:22px; letter-spacing:.2px; }
+  .sub { color:var(--muted); font-size:13px; margin-bottom:14px; }
+  .ask { display:flex; gap:10px; flex-wrap:wrap; }
+  .ask input { flex:1; min-width:260px; padding:12px 14px; border-radius:10px; border:1px solid var(--line);
+               background:var(--panel); color:var(--text); font-size:15px; }
+  .ask input:focus { outline:2px solid var(--accent); border-color:transparent; }
+  button.go { padding:12px 22px; border:0; border-radius:10px; background:var(--accent); color:#fff;
+              font-weight:600; font-size:15px; cursor:pointer; }
+  button.go:disabled { opacity:.5; cursor:wait; }
+  .presets { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
+  .preset { font-size:12px; padding:5px 10px; border-radius:999px; border:1px solid var(--line);
+            background:transparent; color:var(--muted); cursor:pointer; }
+  .preset:hover { color:var(--text); border-color:var(--accent); }
+  #warn { color:#ef6b6b; font-size:13px; margin-top:8px; display:none; }
+
+  main { max-width:1400px; margin:0 auto; padding:8px 24px 60px; }
+  #banner { text-align:center; margin:14px 0; min-height:34px; }
+  .rb { display:inline-block; padding:6px 18px; border-radius:999px; background:var(--panel2);
+        border:1px solid var(--line); font-weight:600; font-size:13px; letter-spacing:.5px;
+        text-transform:uppercase; animation:pop .35s ease; }
+  @keyframes pop { from{transform:scale(.85);opacity:0} to{transform:scale(1);opacity:1} }
+
+  #grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  @media (max-width:1000px){ #grid{ grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:560px){ #grid{ grid-template-columns:1fr;} }
+  .col { background:var(--panel); border:1px solid var(--line); border-top:3px solid var(--c);
+         border-radius:12px; padding:12px; min-height:200px; display:flex; flex-direction:column; gap:10px; }
+  .col h3 { margin:0; font-size:15px; display:flex; align-items:center; gap:8px; color:var(--c); }
+  .msg { background:var(--panel2); border-radius:10px; padding:10px 12px; font-size:14px;
+         animation:slide .4s ease; white-space:pre-wrap; }
+  .msg .r { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.6px;
+            color:var(--muted); margin-bottom:4px; }
+  @keyframes slide { from{transform:translateY(10px);opacity:0} to{transform:none;opacity:1} }
+  .tool { font-size:12px; padding:5px 9px; border-radius:8px; background:#0b0e14;
+          border:1px dashed var(--c); color:var(--c); animation:flash .9s ease; word-break:break-word; }
+  @keyframes flash { 0%{box-shadow:0 0 0 0 var(--c)} 100%{box-shadow:0 0 0 12px transparent} }
+  .typing { color:var(--muted); font-size:13px; }
+  .typing::after { content:"…"; animation:blink 1s infinite; }
+  @keyframes blink { 50%{opacity:.2} }
+
+  .chip { display:inline-block; padding:0 6px; margin:0 1px; border-radius:6px; border:1px solid var(--accent);
+          background:rgba(139,124,246,.15); color:#c9c2ff; font-size:12px; cursor:pointer; font-family:inherit; }
+  .chip:hover { background:var(--accent); color:#fff; }
+
+  #verdict { display:none; margin-top:22px; background:var(--panel); border:1px solid var(--accent);
+             border-radius:14px; padding:22px; animation:slide .5s ease; }
+  #verdict h2 { margin:0 0 14px; font-size:13px; letter-spacing:1px; text-transform:uppercase; color:var(--accent); }
+  .vtop { display:flex; gap:26px; align-items:center; flex-wrap:wrap; }
+  .decision { flex:1; min-width:260px; font-size:20px; font-weight:600; line-height:1.35; }
+  .gauge { text-align:center; }
+  .gauge small { color:var(--muted); display:block; margin-top:2px; }
+  .vgrid { display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-top:22px; }
+  @media (max-width:800px){ .vgrid{ grid-template-columns:1fr; } }
+  .vgrid h4 { margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); }
+  .bar { display:flex; align-items:center; gap:10px; margin:6px 0; font-size:13px; }
+  .bar .n { width:105px; }
+  .bar .t { flex:1; height:10px; background:var(--panel2); border-radius:6px; overflow:hidden; }
+  .bar .f { height:100%; width:0; transition:width 1s ease; background:var(--c); }
+  .bar .v { width:34px; text-align:right; color:var(--muted); }
+  .ev { margin:8px 0; font-size:14px; }
+  .box { background:var(--panel2); border-radius:10px; padding:10px 12px; margin-top:8px; font-size:14px; }
+
+  #drawer { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center;
+            justify-content:center; padding:20px; z-index:10; }
+  #drawer .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; max-width:720px;
+                  width:100%; max-height:80vh; overflow:auto; padding:18px; }
+  #drawer pre { white-space:pre-wrap; word-break:break-word; background:#0b0e14; padding:12px;
+                border-radius:8px; font-size:12px; }
+  #drawer a { color:#9db8ff; }
+  .close { float:right; background:none; border:0; color:var(--muted); font-size:22px; cursor:pointer; }
+  #err { color:#ef6b6b; margin-top:16px; display:none; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚖️ Multi-Agent Debate Engine</h1>
+  <div class="sub">Four agents, each with its own tool server, argue a decision. A judge rules using logged evidence.
+    <span id="models"></span></div>
+  <form class="ask" id="form">
+    <input id="q" placeholder="e.g. MacBook Air M4 vs ThinkPad X1 Carbon for coding, budget ₹1.2 lakh" maxlength="500" required>
+    <button class="go" id="go">Start debate</button>
+  </form>
+  <div class="presets" id="presets"></div>
+  <div id="warn"></div>
+</header>
+
+<main>
+  <div id="banner"></div>
+  <div id="grid"></div>
+  <section id="verdict"></section>
+  <div id="err"></div>
+</main>
+
+<div id="drawer"><div class="card" id="drawerCard"></div></div>
+
+<script>
+const PRESETS = [
+  "MacBook Air M4 vs ThinkPad X1 Carbon for coding, budget ₹1.2 lakh",
+  "Next.js vs Django for a startup MVP with 2 developers",
+  "5-day trip to Goa vs Munnar in December",
+];
+const $ = id => document.getElementById(id);
+const evidence = {};
+let es = null, colors = {};
+
+PRESETS.forEach(p => {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "preset"; b.textContent = p;
+  b.onclick = () => { $("q").value = p; };
+  $("presets").appendChild(b);
+});
+
+fetch("/api/config").then(r => r.json()).then(c => {
+  $("models").textContent = ` · debaters: ${c.debater_model} · judge: ${c.judge_model}`;
+  if (!c.has_key) { const w = $("warn"); w.style.display = "block";
+    w.textContent = "OPENROUTER_API_KEY not found. Copy .env.example to .env, add your key, restart the server."; }
+});
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const withChips = s => esc(s).replace(/\[(E\d+)\]/g, (_, id) => `<button type="button" class="chip" data-id="${id}">${id}</button>`);
+
+document.addEventListener("click", e => {
+  const chip = e.target.closest(".chip");
+  if (chip) return openEvidence(chip.dataset.id);
+  if (e.target.id === "drawer" || e.target.classList.contains("close")) $("drawer").style.display = "none";
+});
+
+function openEvidence(id) {
+  const ev = evidence[id];
+  const card = $("drawerCard");
+  if (!ev) { card.innerHTML = `<button class="close">×</button><p>${esc(id)} not found.</p>`; }
+  else {
+    let body = esc(ev.data);
+    try {
+      const j = JSON.parse(ev.data);
+      if (j.results) {
+        body = (j.results.length ? j.results.map(r =>
+          `<p><strong>${esc(r.title)}</strong><br>${esc(r.snippet)}<br><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a></p>`
+        ).join("") : "<p>No results returned.</p>") +
+        `<small>Search backend: ${esc(j.backend)} · query: ${esc(j.query)}</small>`;
+      } else body = `<pre>${esc(JSON.stringify(j, null, 2))}</pre>`;
+    } catch (_) { body = `<pre>${body}</pre>`; }
+    card.innerHTML = `<button class="close">×</button>
+      <h3>${esc(id)} · ${esc(ev.agent)} → ${esc(ev.tool)}</h3>
+      <small>args: ${esc(JSON.stringify(ev.args))}</small>${body}`;
+  }
+  $("drawer").style.display = "flex";
+}
+
+function reset(agents) {
+  $("grid").innerHTML = ""; $("verdict").style.display = "none"; $("verdict").innerHTML = "";
+  $("banner").innerHTML = ""; $("err").style.display = "none";
+  Object.keys(evidence).forEach(k => delete evidence[k]);
+  agents.forEach(a => {
+    colors[a.name] = a.color;
+    const d = document.createElement("div");
+    d.className = "col"; d.id = "col-" + a.name.replace(/\s/g, "_"); d.style.setProperty("--c", a.color);
+    d.innerHTML = `<h3>${a.emoji} ${esc(a.name)}</h3>`;
+    $("grid").appendChild(d);
+  });
+}
+const col = name => $("col-" + name.replace(/\s/g, "_"));
+const clearTyping = c => c.querySelectorAll(".typing").forEach(t => t.remove());
+
+function gauge(pct) {
+  const r = 46, c = Math.PI * r, off = c * (1 - pct / 100);
+  return `<svg width="130" height="80" viewBox="0 0 120 72">
+    <path d="M14 62 A46 46 0 0 1 106 62" fill="none" stroke="#2a3342" stroke-width="10" stroke-linecap="round"/>
+    <path id="arc" d="M14 62 A46 46 0 0 1 106 62" fill="none" stroke="#8b7cf6" stroke-width="10" stroke-linecap="round"
+      stroke-dasharray="${c}" stroke-dashoffset="${c}" style="transition:stroke-dashoffset 1.2s ease"/>
+    <text x="60" y="58" text-anchor="middle" fill="#e6e9ef" font-size="22" font-weight="700">${pct}%</text></svg>
+    <small>confidence</small>`;
+}
+
+function showVerdict(v) {
+  const bars = Object.entries(v.scores).map(([n, s]) =>
+    `<div class="bar" style="--c:${colors[n] || '#8b7cf6'}"><span class="n">${esc(n)}</span>
+     <span class="t"><span class="f" data-w="${s * 10}"></span></span><span class="v">${s}/10</span></div>`).join("");
+  const ev = v.key_evidence.length ? v.key_evidence.map(k =>
+    `<div class="ev"><button type="button" class="chip" data-id="${k.id}">${k.id}</button> ${esc(k.why)}</div>`).join("")
+    : "<div class='ev'>No validated evidence was cited.</div>";
+  const el = $("verdict");
+  el.innerHTML = `<h2>⚖️ Verdict</h2>
+    <div class="vtop"><div class="decision">${esc(v.decision)}</div><div class="gauge">${gauge(v.confidence)}</div></div>
+    <div class="vgrid">
+      <div><h4>Agent scores</h4>${bars}</div>
+      <div><h4>Key evidence (click to inspect)</h4>${ev}</div>
+    </div>
+    <div class="box"><strong>Deciding factor:</strong> ${esc(v.deciding_factor)}</div>
+    <div class="box"><strong>What would change my mind:</strong> ${esc(v.what_would_change_my_mind)}</div>`;
+  el.style.display = "block";
+  requestAnimationFrame(() => setTimeout(() => {
+    el.querySelectorAll(".f").forEach(f => f.style.width = f.dataset.w + "%");
+    const arc = el.querySelector("#arc");
+    if (arc) arc.style.strokeDashoffset = Math.PI * 46 * (1 - v.confidence / 100);
+  }, 50));
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function handle(e) {
+  switch (e.type) {
+    case "start": reset(e.agents); break;
+    case "round":
+      $("banner").innerHTML = `<span class="rb">Round ${e.n} · ${esc(e.label)}</span>`;
+      if (e.n <= 3) document.querySelectorAll(".col").forEach(c => {
+        clearTyping(c); const t = document.createElement("div"); t.className = "typing"; t.textContent = "thinking"; c.appendChild(t); });
+      break;
+    case "evidence": evidence[e.id] = e; break;
+    case "tool": {
+      const c = col(e.agent); if (!c) break;
+      const t = c.querySelector(".typing");
+      const d = document.createElement("div"); d.className = "tool";
+      const arg = Object.values(e.args || {}).map(v => typeof v === "string" ? v : JSON.stringify(v)).join(", ");
+      d.innerHTML = `🔧 ${esc(e.tool)}(${esc(arg.slice(0, 60))}) → <button type="button" class="chip" data-id="${e.id}">${e.id}</button>`;
+      c.insertBefore(d, t); break;
+    }
+    case "say": {
+      const c = col(e.agent); if (!c) break; clearTyping(c);
+      const m = document.createElement("div"); m.className = "msg";
+      m.innerHTML = `<span class="r">Round ${e.round}</span>${withChips(e.text)}`;
+      c.appendChild(m); break;
+    }
+    case "verdict":
+      Object.assign(evidence, e.evidence);
+      $("banner").innerHTML = `<span class="rb">Verdict</span>`;
+      showVerdict(e.data); break;
+    case "error": $("err").style.display = "block"; $("err").textContent = "Error: " + e.message; finish(); break;
+    case "done": finish(); break;
+  }
+}
+
+function finish() { if (es) { es.close(); es = null; } $("go").disabled = false; $("go").textContent = "Start debate"; }
+
+$("form").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const q = $("q").value.trim(); if (!q) return;
+  if (es) es.close();
+  $("go").disabled = true; $("go").textContent = "Debating…";
+  es = new EventSource("/debate?q=" + encodeURIComponent(q));
+  es.onmessage = m => handle(JSON.parse(m.data));
+  es.onerror = () => { if (es && es.readyState === EventSource.CLOSED) return;
+    // server closed the stream after "done"; only report if we never finished
+    if ($("go").disabled) { $("err").style.display = "block";
+      $("err").textContent = "Connection lost. Check the server terminal, and that OPENROUTER_API_KEY is set."; }
+    finish(); };
+});
+</script>
+</body>
+</html>
